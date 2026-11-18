@@ -1,14 +1,21 @@
 
 import express from "express";
 import mongoose from "mongoose";
+
 import Activity from "../models/Activity.js";
+import protect from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// GET: Fetch all activities
+// All activity routes require authentication
+router.use(protect);
+
+// GET: Fetch only logged-in user's activities
 router.get("/", async (req, res) => {
   try {
-    const activities = await Activity.find().sort({ createdAt: -1 });
+    const activities = await Activity.find({
+      user: req.user._id,
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -23,12 +30,12 @@ router.get("/", async (req, res) => {
   }
 });
 
-// POST: Create activity
+// POST: Create activity for logged-in user
 router.post("/", async (req, res) => {
   try {
     const { title, category, time, duration, color } = req.body;
 
-    if (!title || !title.trim()) {
+    if (typeof title !== "string" || !title.trim()) {
       return res.status(400).json({
         success: false,
         message: "Activity title is required",
@@ -36,7 +43,8 @@ router.post("/", async (req, res) => {
     }
 
     const activity = await Activity.create({
-      title,
+      user: req.user._id,
+      title: title.trim(),
       category,
       time,
       duration,
@@ -55,7 +63,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PATCH: Update activity details or completion
+// PATCH: Update only user's own activity
 router.patch("/:id", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
@@ -96,8 +104,11 @@ router.patch("/:id", async (req, res) => {
       updates.title = updates.title.trim();
     }
 
-    const activity = await Activity.findByIdAndUpdate(
-      req.params.id,
+    const activity = await Activity.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        user: req.user._id,
+      },
       { $set: updates },
       { new: true, runValidators: true }
     );
@@ -121,7 +132,7 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
-// DELETE: Remove activity
+// DELETE: Remove only user's own activity
 router.delete("/:id", async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {
@@ -131,7 +142,10 @@ router.delete("/:id", async (req, res) => {
       });
     }
 
-    const activity = await Activity.findByIdAndDelete(req.params.id);
+    const activity = await Activity.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user._id,
+    });
 
     if (!activity) {
       return res.status(404).json({

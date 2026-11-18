@@ -1,6 +1,5 @@
 
 import { useMemo, useState } from "react";
-
 import { useActivities } from "../context/ActivityContext";
 
 import {
@@ -16,6 +15,7 @@ import {
   ArrowUpRight,
   Zap,
   Target,
+  X,
 } from "lucide-react";
 
 import {
@@ -37,12 +37,20 @@ const weeklyData = [
   { day: "Sun", completed: 6, total: 8 },
 ];
 
+const initialForm = {
+  title: "",
+  category: "Personal",
+  time: "Anytime",
+  duration: "30 minutes",
+};
+
 function Dashboard() {
   const { activities, addActivity, toggleActivity } = useActivities();
 
-  const [newActivity, setNewActivity] = useState("");
+  const [formData, setFormData] = useState(initialForm);
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState("");
+  const [formError, setFormError] = useState("");
 
   const completed = activities.filter(
     (activity) => activity.completed
@@ -68,15 +76,49 @@ function Dashboard() {
     );
   }, [activities, search]);
 
-  const handleAddActivity = (event) => {
+  const handleFormChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+
+    setFormError("");
+  };
+
+  const handleAddActivity = async (event) => {
     event.preventDefault();
 
-    if (!newActivity.trim()) return;
+    if (!formData.title.trim()) {
+      setFormError("Please enter an activity title.");
+      return;
+    }
 
-    addActivity(newActivity);
+    try {
+      await addActivity(
+        formData.title.trim(),
+        {
+          category: formData.category,
+          time: formData.time,
+          duration: formData.duration,
+        }
+      );
 
-    setNewActivity("");
+      setFormData(initialForm);
+      setFormError("");
+      setShowAdd(false);
+    } catch (error) {
+      setFormError(
+        error.message || "Unable to save activity. Please try again."
+      );
+    }
+  };
+
+  const handleCloseForm = () => {
     setShowAdd(false);
+    setFormData(initialForm);
+    setFormError("");
   };
 
   const StatCard = ({ title, value, subtitle, icon: Icon, color }) => (
@@ -131,30 +173,118 @@ function Dashboard() {
           className="add-activity-form"
           onSubmit={handleAddActivity}
         >
-          <div className="flex-grow-1">
-            <label htmlFor="activityName">New activity</label>
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h5 className="mb-0">Create New Activity</h5>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleCloseForm}
+              aria-label="Close form"
+            >
+              <X size={17} />
+            </button>
+          </div>
+
+          <div className="mb-3">
+            <label htmlFor="activityName" className="form-label">
+              Activity title *
+            </label>
 
             <input
               id="activityName"
+              name="title"
               className="form-control dark-input"
               placeholder="What do you want to accomplish?"
-              value={newActivity}
-              onChange={(event) => setNewActivity(event.target.value)}
+              value={formData.title}
+              onChange={handleFormChange}
               autoFocus
             />
           </div>
 
-          <button type="submit" className="primary-button">
-            Save Activity
-          </button>
+          <div className="row g-3 mb-3">
+            <div className="col-12 col-md-4">
+              <label htmlFor="activityCategory" className="form-label">
+                Category
+              </label>
 
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => setShowAdd(false)}
-          >
-            Cancel
-          </button>
+              <select
+                id="activityCategory"
+                name="category"
+                className="form-select dark-input"
+                value={formData.category}
+                onChange={handleFormChange}
+              >
+                <option value="Personal">Personal</option>
+                <option value="Health">Health</option>
+                <option value="Learning">Learning</option>
+                <option value="Development">Development</option>
+                <option value="Work">Work</option>
+              </select>
+            </div>
+
+            <div className="col-12 col-md-4">
+              <label htmlFor="activityTime" className="form-label">
+                Scheduled time
+              </label>
+
+              <select
+                id="activityTime"
+                name="time"
+                className="form-select dark-input"
+                value={formData.time}
+                onChange={handleFormChange}
+              >
+                <option value="Anytime">Anytime</option>
+                <option value="Morning">Morning</option>
+                <option value="Afternoon">Afternoon</option>
+                <option value="Evening">Evening</option>
+                <option value="Night">Night</option>
+              </select>
+            </div>
+
+            <div className="col-12 col-md-4">
+              <label htmlFor="activityDuration" className="form-label">
+                Duration
+              </label>
+
+              <select
+                id="activityDuration"
+                name="duration"
+                className="form-select dark-input"
+                value={formData.duration}
+                onChange={handleFormChange}
+              >
+                <option value="15 minutes">15 minutes</option>
+                <option value="30 minutes">30 minutes</option>
+                <option value="45 minutes">45 minutes</option>
+                <option value="1 hour">1 hour</option>
+                <option value="2 hours">2 hours</option>
+                <option value="Not set">Not set</option>
+              </select>
+            </div>
+          </div>
+
+          {formError && (
+            <div className="alert alert-danger py-2">
+              {formError}
+            </div>
+          )}
+
+          <div className="d-flex flex-wrap gap-2">
+            <button type="submit" className="primary-button">
+              <Plus size={17} />
+              Save Activity
+            </button>
+
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleCloseForm}
+            >
+              Cancel
+            </button>
+          </div>
         </form>
       )}
 

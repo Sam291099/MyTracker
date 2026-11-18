@@ -2,14 +2,19 @@
 import {
   Search,
   Bell,
-  ChevronDown,
   Menu,
+  LogOut,
+  User,
 } from "lucide-react";
 
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 function Header({ onMenuClick }) {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const { user, logout } = useAuth();
 
   const page =
     location.pathname === "/"
@@ -19,12 +24,18 @@ function Header({ onMenuClick }) {
           (char) => char.toUpperCase()
         );
 
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
   return (
     <header className="topbar">
       <div className="d-flex align-items-center gap-3">
         <button
           className="icon-button mobile-menu"
           onClick={onMenuClick}
+          aria-label="Open menu"
         >
           <Menu size={21} />
         </button>
@@ -44,15 +55,32 @@ function Header({ onMenuClick }) {
           <span className="search-shortcut">/</span>
         </div>
 
-        <button className="icon-button notification-button">
+        <button
+          className="icon-button notification-button"
+          aria-label="Notifications"
+        >
           <Bell size={19} />
           <span className="notification-dot" />
         </button>
 
         <div className="topbar-profile">
-          <div className="avatar">U</div>
-          <span>My Account</span>
-          <ChevronDown size={16} />
+          <div className="avatar">
+            {user?.name?.charAt(0).toUpperCase() || "U"}
+          </div>
+
+          <span className="d-none d-sm-inline">
+            {user?.name || "My Account"}
+          </span>
+
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handleLogout}
+            title="Logout"
+            aria-label="Logout"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
     </header>

@@ -5,21 +5,20 @@ import cors from "cors";
 
 import connectDB from "./config/db.js";
 import activityRoutes from "./routes/activityRoutes.js";
+import goalRoutes from "./routes/goalRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Welcome route
 app.get("/", (req, res) => {
   res.send("Welcome to MyTracker API!");
 });
 
-// Health check route
 app.get("/api/health", (req, res) => {
   res.json({
     success: true,
@@ -27,13 +26,17 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Activity routes
 app.use("/api/activities", activityRoutes);
+app.use("/api/goals", goalRoutes);
+app.use("/api/auth", authRoutes);
 
-// Start server
 const startServer = async () => {
   try {
     await connectDB();
+
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is missing from environment variables.");
+    }
 
     const PORT = process.env.PORT || 5000;
 

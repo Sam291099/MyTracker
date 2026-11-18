@@ -8,6 +8,8 @@ import {
 
 import axios from "axios";
 
+import { useAuth } from "./AuthContext";
+
 import {
   Dumbbell,
   BookOpen,
@@ -19,7 +21,7 @@ import {
 
 const ActivityContext = createContext();
 
-const API_URL = "http://localhost:5000/api/activities";
+const API_URL = `${import.meta.env.VITE_API_URL}/api/activities`;
 
 const getActivityIcon = (category) => {
   const icons = {
@@ -41,20 +43,43 @@ const formatActivity = (activity) => ({
 });
 
 export function ActivityProvider({ children }) {
+  const { token } = useAuth();
+
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Fetch activities
+  // Authentication headers
+  const authConfig = {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  };
+
+  // Fetch activities when authenticated
   useEffect(() => {
     const fetchActivities = async () => {
+      if (!token) {
+        setActivities([]);
+        setLoading(false);
+        setError("");
+        return;
+      }
+
+      setLoading(true);
+
       try {
-        const response = await axios.get(API_URL);
+        const response = await axios.get(API_URL, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         setActivities(response.data.data.map(formatActivity));
         setError("");
       } catch (err) {
         console.error("Failed to fetch activities:", err);
+        setActivities([]);
         setError("Unable to load activities from server.");
       } finally {
         setLoading(false);
@@ -62,26 +87,37 @@ export function ActivityProvider({ children }) {
     };
 
     fetchActivities();
-  }, []);
+  }, [token]);
 
   // Add activity
-  const addActivity = async (title) => {
+  const addActivity = async (title, activityDetails = {}) => {
     try {
-      const response = await axios.post(API_URL, {
-        title,
-        category: "Personal",
-        time: "Anytime",
-        duration: "Not set",
-        color: "purple",
-      });
+      const response = await axios.post(
+        API_URL,
+        {
+          title: title.trim(),
+          category: activityDetails.category || "Personal",
+          time: activityDetails.time || "Anytime",
+          duration: activityDetails.duration || "Not set",
+          color: activityDetails.color || "purple",
+        },
+        authConfig
+      );
 
       const newActivity = formatActivity(response.data.data);
 
       setActivities((previous) => [...previous, newActivity]);
       setError("");
+
+      return newActivity;
     } catch (err) {
       console.error("Failed to add activity:", err);
       setError("Unable to save activity.");
+
+      throw new Error(
+        err.response?.data?.message ||
+        "Unable to save activity. Please try again."
+      );
     }
   };
 
@@ -92,9 +128,13 @@ export function ActivityProvider({ children }) {
     if (!activity) return;
 
     try {
-      const response = await axios.patch(`${API_URL}/${id}`, {
-        completed: !activity.completed,
-      });
+      const response = await axios.patch(
+        `${API_URL}/${id}`,
+        {
+          completed: !activity.completed,
+        },
+        authConfig
+      );
 
       const updatedActivity = formatActivity(response.data.data);
 
@@ -114,7 +154,7 @@ export function ActivityProvider({ children }) {
   // Delete activity
   const deleteActivity = async (id) => {
     try {
-      await axios.delete(`${API_URL}/${id}`);
+      await axios.delete(`${API_URL}/${id}`, authConfig);
 
       setActivities((previous) =>
         previous.filter((activity) => activity.id !== id)
@@ -132,7 +172,8 @@ export function ActivityProvider({ children }) {
     try {
       const response = await axios.patch(
         `${API_URL}/${id}`,
-        updatedData
+        updatedData,
+        authConfig
       );
 
       const updatedActivity = formatActivity(response.data.data);
